@@ -1,0 +1,11 @@
+std_msgs/Header header
+string node_name
+string trace_type
+int64 steady_t
+int64 source_t_min
+int64 source_t_max
+int64 latency_min
+int64 latency_max
+string uuid
+string[] used_uuids
+Trace[] traces

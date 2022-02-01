@@ -7,11 +7,33 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+set(msg_files
+  "msg/Trace.msg"
+  "msg/Traces.msg"
+  DEPENDENCIES std_msgs builtin_interfaces
+)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  ${msg_files}
+)
+
+ament_export_dependencies(rosidl_default_runtime)
 
 add_executable(end_to_end_sample
   src/end_to_end_sample.cpp)
-ament_target_dependencies(end_to_end_sample rclcpp sensor_msgs)
+
+target_link_libraries(end_to_end_sample
+  uuid
+)
+
+rosidl_target_interfaces(end_to_end_sample
+  ${PROJECT_NAME} "rosidl_typesupport_cpp")
+
+ament_target_dependencies(end_to_end_sample rclcpp)
 install(TARGETS
   end_to_end_sample
   DESTINATION lib/${PROJECT_NAME})
