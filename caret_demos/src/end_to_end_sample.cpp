@@ -63,6 +63,7 @@ inline std::vector<int> rand_range(int max, size_t size) {
 }
 
 inline std::unique_ptr<caret_demos::msg::Traces> generate_msg(
+  int64_t seq,
   std::string node_name,
   std::string trace_type,
   rclcpp::Time header_stamp,
@@ -72,6 +73,7 @@ inline std::unique_ptr<caret_demos::msg::Traces> generate_msg(
   auto msg = std::make_unique<caret_demos::msg::Traces>();
   msg->trace_type = trace_type;
   msg->steady_t = get_now();
+  msg->seq = seq;
   msg->node_name = node_name;
   msg->header.stamp = header_stamp;
   msg->uuid = generate_uuid();
@@ -170,14 +172,14 @@ public:
   TimerDependencyNode(
     std::string node_name, std::string sub_topic_name, std::string pub_topic_name,
     int period_ms)
-  : SubTimingAdvertiseNode(node_name), buf_(5)
+  : SubTimingAdvertiseNode(node_name), seq_(0), seq__(0), buf_(5)
   {
     pub_ = create_timing_advertise_publisher<caret_demos::msg::Traces>(pub_topic_name, QOS_HISTORY_SIZE);
     sub_ = create_timing_advertise_subscription<caret_demos::msg::Traces>(
       sub_topic_name, QOS_HISTORY_SIZE,
       [&](caret_demos::msg::Traces::UniquePtr msg)
       {
-        auto sub_msg = generate_msg(get_name(), CALLBACK_START, now(), {*msg});
+        auto sub_msg = generate_msg(seq_++, get_name(), CALLBACK_START, now(), {*msg});
         buf_.push_back(*sub_msg);
         rclcpp::sleep_for(lognormal_distribution(45));
       });
@@ -189,7 +191,7 @@ public:
         rclcpp::sleep_for(lognormal_distribution(45));
         if (buf_.count() == buf_.size()) {
           auto used_msgs =  buf_.gets(rand_range(5, rand(4)));
-          auto msg_ = generate_msg(get_name(), PUBLISH_TYPE, now(), used_msgs);
+          auto msg_ = generate_msg(seq__++, get_name(), PUBLISH_TYPE, now(), used_msgs);
           for (auto &used_msg: used_msgs) {
             pub_->add_explicit_input_info(
               sub_->get_topic_name(),
@@ -202,6 +204,8 @@ public:
   }
 
 private:
+  int64_t seq_;
+  int64_t seq__;
   pathnode::TimingAdvertisePublisher<caret_demos::msg::Traces>::SharedPtr pub_;
   rclcpp::Subscription<caret_demos::msg::Traces>::SharedPtr sub_;
   CircularBuffer<caret_demos::msg::Traces> buf_;
@@ -232,18 +236,18 @@ class NoDependencyNode : public pathnode::SubTimingAdvertiseNode
 {
 public:
   NoDependencyNode(std::string node_name, std::string sub_topic_name, std::string pub_topic_name)
-  : SubTimingAdvertiseNode(node_name)
+  : SubTimingAdvertiseNode(node_name), seq_(0), seq__(0)
   {
     pub_ = create_timing_advertise_publisher<caret_demos::msg::Traces>(pub_topic_name, QOS_HISTORY_SIZE);
     sub_ = create_timing_advertise_subscription<caret_demos::msg::Traces>(
       sub_topic_name, QOS_HISTORY_SIZE, [&](caret_demos::msg::Traces::UniquePtr msg)
       {
-        auto msg_cb_start = generate_msg(get_name(), CALLBACK_START, now(), {*msg});
+        auto msg_cb_start = generate_msg(seq_++, get_name(), CALLBACK_START, now(), {*msg});
         msg_cb_start->header.stamp = msg->header.stamp;
 
         rclcpp::sleep_for(lognormal_distribution(200));
 
-        auto msg_publish = generate_msg(get_name(), PUBLISH_TYPE, now(), {*msg_cb_start});
+        auto msg_publish = generate_msg(seq__++, get_name(), PUBLISH_TYPE, now(), {*msg_cb_start});
         msg_publish->header.stamp = msg_cb_start->header.stamp;
 
         pub_->publish(std::move(msg_publish));
@@ -251,6 +255,8 @@ public:
   }
 
 private:
+  int64_t seq_;
+  int64_t seq__;
   pathnode::TimingAdvertisePublisher<caret_demos::msg::Traces>::SharedPtr pub_;
   rclcpp::Subscription<caret_demos::msg::Traces>::SharedPtr sub_;
 };
@@ -264,12 +270,12 @@ public:
     std::string subsequent_sub_topic_name,
     std::string pub_topic_name
   )
-  : SubTimingAdvertiseNode(node_name), buf_(5)
+  : SubTimingAdvertiseNode(node_name), seq_(0), seq__(0), buf_(5)
   {
     sub1_ = create_timing_advertise_subscription<caret_demos::msg::Traces>(
       sub_topic_name, QOS_HISTORY_SIZE, [&](caret_demos::msg::Traces::UniquePtr msg)
       {
-        auto sub_msg = generate_msg(get_name(), CALLBACK_START, now(), {*msg});
+        auto sub_msg = generate_msg(seq_++, get_name(), CALLBACK_START, now(), {*msg});
         buf_.push_back(*sub_msg);
         rclcpp::sleep_for(lognormal_distribution(45));
       });
@@ -281,7 +287,7 @@ public:
 
         if (buf_.count() == buf_.size()) {
           auto used_msgs = buf_.gets({0,1,2,3,4});
-          auto pub_msg = generate_msg(get_name(), PUBLISH_TYPE, now(), used_msgs);
+          auto pub_msg = generate_msg(seq__++, get_name(), PUBLISH_TYPE, now(), used_msgs);
           for (auto &used_msg: used_msgs) {
             pub_->add_explicit_input_info(
               sub1_->get_topic_name(),
@@ -295,6 +301,8 @@ public:
   }
 
 private:
+  int64_t seq_;
+  int64_t seq__;
   pathnode::TimingAdvertisePublisher<caret_demos::msg::Traces>::SharedPtr pub_;
   rclcpp::Subscription<caret_demos::msg::Traces>::SharedPtr sub1_;
   rclcpp::Subscription<caret_demos::msg::Traces>::SharedPtr sub2_;
@@ -306,13 +314,13 @@ class SensorDummy : public pathnode::SubTimingAdvertiseNode
 {
 public:
   SensorDummy(std::string node_name, std::string topic_name, int period_ms)
-  : SubTimingAdvertiseNode(node_name)
+  : SubTimingAdvertiseNode(node_name), seq_(0)
   {
     auto period = std::chrono::milliseconds(period_ms);
 
     auto callback = [&]() {
         rclcpp::sleep_for(lognormal_distribution(40));
-        auto msg = generate_msg(get_name(), PUBLISH_TYPE, now(), {});
+        auto msg = generate_msg(seq_++, get_name(), PUBLISH_TYPE, now(), {});
         msg->source_t_min = msg->steady_t;
         msg->source_t_max = msg->steady_t;
         pub_->publish(std::move(msg));
@@ -323,6 +331,7 @@ public:
 
 private:
   pathnode::TimingAdvertisePublisher<caret_demos::msg::Traces>::SharedPtr pub_;
+  int64_t seq_;
   rclcpp::TimerBase::SharedPtr timer_;
 };
 

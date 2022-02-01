@@ -1,4 +1,5 @@
 std_msgs/Header header
+int64 seq
 string node_name
 string trace_type
 int64 steady_t
