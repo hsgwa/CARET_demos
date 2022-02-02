@@ -35,6 +35,17 @@ install(TARGETS
   end_to_end_sample
   DESTINATION lib/${PROJECT_NAME})
 
+ament_auto_add_executable(clock_publisher
+  src/clock_publisher.cpp)
+
+rosidl_target_interfaces(clock_publisher
+  ${PROJECT_NAME} "rosidl_typesupport_cpp")
+
+ament_target_dependencies(clock_publisher rclcpp)
+install(TARGETS
+  clock_publisher
+  DESTINATION lib/${PROJECT_NAME})
+
 # install launch files
 install(DIRECTORY
   launch
