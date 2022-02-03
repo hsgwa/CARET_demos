@@ -8,6 +8,10 @@ from tracetools_launch.action import Trace
 
 def generate_launch_description():
     return launch.LaunchDescription([
+        launch.actions.ExecuteProcess(
+            cmd=['ros2', 'bag', 'record', '-a'],
+            output='screen'
+        ),
         Trace(
             session_name='end_to_end_sample',
             events_kernel=[],
