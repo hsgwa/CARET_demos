@@ -26,7 +26,7 @@ std::chrono::milliseconds lognormal_distribution(double max)
   static std::default_random_engine engine(seed_gen());
   static std::lognormal_distribution<> dist(1.1, 1.7);
 
-  int sleep_ms = std::max(std::min(dist(engine), max), 20.0);
+  int sleep_ms = std::max(std::min(dist(engine), max), 5.0);
   return std::chrono::milliseconds(sleep_ms);
 }
 
@@ -102,7 +102,7 @@ inline std::unique_ptr<caret_demos::msg::Traces> generate_msg(
     trace.uuid = source_message.uuid;
     trace.used_uuids =  source_message.used_uuids;
     trace.trace_type = source_message.trace_type;
-    trace.node_name = node_name;
+    trace.node_name = source_message.node_name;
     trace.steady_t = source_message.steady_t;
     msg->traces.push_back(trace);
   }
@@ -182,14 +182,14 @@ public:
       {
         auto sub_msg = generate_msg(seq_++, get_name(), CALLBACK_START, now(), {*msg});
         buf_.push_back(*sub_msg);
-        rclcpp::sleep_for(lognormal_distribution(45));
+        rclcpp::sleep_for(lognormal_distribution(25));
       });
 
 
     timer_ = create_wall_timer(
       std::chrono::milliseconds(period_ms), [&]()
       {
-        rclcpp::sleep_for(lognormal_distribution(45));
+        rclcpp::sleep_for(lognormal_distribution(25));
         if (buf_.count() == buf_.size()) {
           auto used_msgs =  buf_.gets(rand_range(5, rand(4)));
           auto msg_ = generate_msg(seq__++, get_name(), PUBLISH_TYPE, now(), used_msgs);
@@ -224,8 +224,9 @@ public:
       sub_topic_name, QOS_HISTORY_SIZE,
       [&](caret_demos::msg::Traces::UniquePtr msg)
       {
-        auto msg_ = generate_msg(seq_++, get_name(), PUBLISH_TYPE, now(), {*msg});
-        pub_->publish(std::move(msg_));
+        auto msg_ = generate_msg(seq_++, get_name(), CALLBACK_START, now(), {*msg});
+        auto msg__ = generate_msg(seq_++, get_name(), "END", now(), {*msg_});
+        pub_->publish(std::move(msg__));
       }
     );
   }
