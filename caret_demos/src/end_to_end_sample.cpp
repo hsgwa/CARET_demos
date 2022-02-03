@@ -102,6 +102,7 @@ inline std::unique_ptr<caret_demos::msg::Traces> generate_msg(
     trace.uuid = source_message.uuid;
     trace.used_uuids =  source_message.used_uuids;
     trace.trace_type = source_message.trace_type;
+    trace.node_name = node_name;
     trace.steady_t = source_message.steady_t;
     msg->traces.push_back(trace);
   }
