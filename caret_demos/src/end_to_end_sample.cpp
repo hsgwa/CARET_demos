@@ -176,11 +176,12 @@ public:
   : SubTimingAdvertiseNode(node_name), seq_(0), seq__(0), buf_(5)
   {
     pub_ = create_timing_advertise_publisher<caret_demos::msg::Traces>(pub_topic_name, QOS_HISTORY_SIZE);
+    pub_->set_max_sub_callback_infos_sec(60);
     sub_ = create_timing_advertise_subscription<caret_demos::msg::Traces>(
       sub_topic_name, QOS_HISTORY_SIZE,
       [&](caret_demos::msg::Traces::UniquePtr msg)
       {
-        auto sub_msg = generate_msg(seq_++, get_name(), CALLBACK_START, now(), {*msg});
+        auto sub_msg = generate_msg(seq_++, get_name(), CALLBACK_START, msg->header.stamp, {*msg});
         buf_.push_back(*sub_msg);
         rclcpp::sleep_for(lognormal_distribution(25));
       });
@@ -220,12 +221,13 @@ public:
   : SubTimingAdvertiseNode(node_name), seq_(0)
   {
     pub_ = create_timing_advertise_publisher<caret_demos::msg::Traces>(pub_topic_name, QOS_HISTORY_SIZE);
+    pub_->set_max_sub_callback_infos_sec(60);
     sub_ = create_timing_advertise_subscription<caret_demos::msg::Traces>(
       sub_topic_name, QOS_HISTORY_SIZE,
       [&](caret_demos::msg::Traces::UniquePtr msg)
       {
-        auto msg_ = generate_msg(seq_++, get_name(), CALLBACK_START, now(), {*msg});
-        auto msg__ = generate_msg(seq_++, get_name(), "END", now(), {*msg_});
+        auto msg_ = generate_msg(seq_++, get_name(), CALLBACK_START, msg->header.stamp, {*msg});
+        auto msg__ = generate_msg(seq_++, get_name(), "END", msg->header.stamp, {*msg_});
         pub_->publish(std::move(msg__));
       }
     );
@@ -244,15 +246,16 @@ public:
   : SubTimingAdvertiseNode(node_name), seq_(0), seq__(0)
   {
     pub_ = create_timing_advertise_publisher<caret_demos::msg::Traces>(pub_topic_name, QOS_HISTORY_SIZE);
+    pub_->set_max_sub_callback_infos_sec(60);
     sub_ = create_timing_advertise_subscription<caret_demos::msg::Traces>(
       sub_topic_name, QOS_HISTORY_SIZE, [&](caret_demos::msg::Traces::UniquePtr msg)
       {
-        auto msg_cb_start = generate_msg(seq_++, get_name(), CALLBACK_START, now(), {*msg});
+        auto msg_cb_start = generate_msg(seq_++, get_name(), CALLBACK_START, msg->header.stamp, {*msg});
         msg_cb_start->header.stamp = msg->header.stamp;
 
         rclcpp::sleep_for(lognormal_distribution(200));
 
-        auto msg_publish = generate_msg(seq__++, get_name(), PUBLISH_TYPE, now(), {*msg_cb_start});
+        auto msg_publish = generate_msg(seq__++, get_name(), PUBLISH_TYPE, msg_cb_start->header.stamp, {*msg_cb_start});
         msg_publish->header.stamp = msg_cb_start->header.stamp;
 
         pub_->publish(std::move(msg_publish));
@@ -280,7 +283,7 @@ public:
     sub1_ = create_timing_advertise_subscription<caret_demos::msg::Traces>(
       sub_topic_name, QOS_HISTORY_SIZE, [&](caret_demos::msg::Traces::UniquePtr msg)
       {
-        auto sub_msg = generate_msg(seq_++, get_name(), CALLBACK_START, now(), {*msg});
+        auto sub_msg = generate_msg(seq_++, get_name(), CALLBACK_START, msg->header.stamp, {*msg});
         buf_.push_back(*sub_msg);
         rclcpp::sleep_for(lognormal_distribution(45));
       });
@@ -292,7 +295,7 @@ public:
 
         if (buf_.count() == buf_.size()) {
           auto used_msgs = buf_.gets({0,1,2,3,4});
-          auto pub_msg = generate_msg(seq__++, get_name(), PUBLISH_TYPE, now(), used_msgs);
+          auto pub_msg = generate_msg(seq__++, get_name(), PUBLISH_TYPE, msg->header.stamp, used_msgs);
           for (auto &used_msg: used_msgs) {
             pub_->add_explicit_input_info(
               sub1_->get_topic_name(),
@@ -303,6 +306,7 @@ public:
         }
       });
     pub_ = create_timing_advertise_publisher<caret_demos::msg::Traces>(pub_topic_name, QOS_HISTORY_SIZE);
+    pub_->set_max_sub_callback_infos_sec(60);
   }
 
 private:
@@ -331,6 +335,7 @@ public:
         pub_->publish(std::move(msg));
       };
     pub_ = create_timing_advertise_publisher<caret_demos::msg::Traces>(topic_name, QOS_HISTORY_SIZE);
+    pub_->set_max_sub_callback_infos_sec(60);
     timer_ = create_wall_timer(period, callback);
   }
 
