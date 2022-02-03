@@ -215,20 +215,23 @@ private:
 class ActuatorDummy : public pathnode::SubTimingAdvertiseNode
 {
 public:
-  ActuatorDummy(std::string node_name, std::string sub_topic_name)
-  : SubTimingAdvertiseNode(node_name)
+  ActuatorDummy(std::string node_name, std::string sub_topic_name, std::string pub_topic_name)
+  : SubTimingAdvertiseNode(node_name), seq_(0)
   {
+    pub_ = create_timing_advertise_publisher<caret_demos::msg::Traces>(pub_topic_name, QOS_HISTORY_SIZE);
     sub_ = create_timing_advertise_subscription<caret_demos::msg::Traces>(
       sub_topic_name, QOS_HISTORY_SIZE,
       [&](caret_demos::msg::Traces::UniquePtr msg)
       {
-        rclcpp::sleep_for(lognormal_distribution(80));
-        (void)msg;
+        auto msg_ = generate_msg(seq_++, get_name(), PUBLISH_TYPE, now(), {*msg});
+        pub_->publish(std::move(msg_));
       }
     );
   }
 
 private:
+  int64_t seq_;
+  pathnode::TimingAdvertisePublisher<caret_demos::msg::Traces>::SharedPtr pub_;
   rclcpp::Subscription<caret_demos::msg::Traces>::SharedPtr sub_;
 };
 
@@ -343,7 +346,7 @@ int main(int argc, char * argv[])
 
   std::vector<std::shared_ptr<rclcpp::Node>> nodes;
 
-  nodes.emplace_back(std::make_shared<ActuatorDummy>("actuator_dummy_node", "/topic4"));
+  nodes.emplace_back(std::make_shared<ActuatorDummy>("actuator_dummy_node", "/topic4", "/topic5"));
   nodes.emplace_back(
     std::make_shared<NoDependencyNode>("filter_node", "/topic1", "/topic2"));
   nodes.emplace_back(
